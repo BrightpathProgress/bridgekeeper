@@ -359,10 +359,17 @@ class R(Rule):
             # TODO: check lookups are not being used
             if isinstance(value, Rule):
                 child_q_obj = value.query(user)
+                if child_q_obj is EMPTY:
+                    return EMPTY
+                elif child_q_obj is UNIVERSAL:
+                    child_q_obj = Q()
                 accumulated_q &= add_prefix(child_q_obj, key)
             else:
                 resolved_value = value(user) if callable(value) else value
                 accumulated_q &= Q(**{key: resolved_value})
+
+        if accumulated_q == Q():
+            return UNIVERSAL
 
         return accumulated_q
 

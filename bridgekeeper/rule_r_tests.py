@@ -104,12 +104,18 @@ def test_traverse_nonexistent_fk():
     user_has_no_profile = R(profile=None)
 
     # filter() tests
-    queryset = user_has_profile.filter(user, User.objects.all())
-    assert user not in queryset
+    users_with_profile = user_has_profile.filter(user, User.objects.all())
+    assert user not in users_with_profile
+    assert profile.user in users_with_profile
+    users_with_no_profile = user_has_no_profile.filter(user, User.objects.all())
+    assert user in users_with_no_profile
+    assert profile.user not in users_with_no_profile
 
     # check() tests
     assert not user_has_profile.check(user, user)
+    assert user_has_profile.check(user, profile.user)
     assert user_has_no_profile.check(user, user)
+    assert not user_has_no_profile.check(user, profile.user)
 
 
 def test_nested_rule_object():

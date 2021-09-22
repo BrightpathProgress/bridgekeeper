@@ -122,7 +122,14 @@ class Rule:
         this rule for a given instance, or if none is provided,
         every instance.
         """
-        raise NotImplementedError()
+        if instance is None:
+            return False
+        # Get a queryset with only this instance in it
+        queryset = instance._meta.model.objects.filter(pk=instance.pk)
+        # Filter the queryset by the Rule
+        queryset = self.filter(user, queryset)
+        # Check if it exists
+        return queryset.exists()
 
     def __and__(self, other):
         return And(self, other)
@@ -171,9 +178,6 @@ class And(BinaryCompositeRule):
             return left
         return left & right
 
-    def check(self, user, instance=None):
-        return self.left.check(user, instance) and self.right.check(user, instance)
-
 
 class Or(BinaryCompositeRule):
     sym = "|"
@@ -200,9 +204,6 @@ class Or(BinaryCompositeRule):
             return left
         return left | right
 
-    def check(self, user, instance=None):
-        return self.left.check(user, instance) or self.right.check(user, instance)
-
 
 class Not(Rule):
     def __init__(self, base):
@@ -219,9 +220,6 @@ class Not(Rule):
         if base is UNIVERSAL:
             return EMPTY
         return ~base
-
-    def check(self, user, instance=None):
-        return not self.base.check(user, instance)
 
     def __invert__(self):
         return self.base
@@ -310,56 +308,6 @@ class R(Rule):
             ", ".join("{}={!r}".format(k, v) for k, v in self.kwargs.items())
         )
 
-    def check(self, user, instance=None):
-        if instance is None:
-            return False
-
-        # This loop exits early, returning False, if any argument
-        # doesn't match.
-        for key, value in self.kwargs.items():
-
-            # Find the appropriate LHS on this object, traversing
-            # foreign keys if necessary.
-            lhs = instance
-            for key_fragment in key.split("__"):
-                field = lhs.__class__._meta.get_field(key_fragment,)
-                if isinstance(field, ForeignObjectRel):
-                    attr = field.get_accessor_name()
-                else:
-                    attr = key_fragment
-                try:
-                    lhs = getattr(lhs, attr)
-                except ObjectDoesNotExist:
-                    # This will occur if we are attempting to follow the
-                    # 'other' side of a ForeignKey/OneToOneField, but there is
-                    # no record on the other side.
-                    lhs = None
-                    break
-
-            # Compare it against the RHS.
-            # Note that the LHS will usually be a value, but in the case
-            # of a ManyToMany or the 'other side' of a ForeignKey it
-            # will be a RelatedManager. In this case, we need to check
-            # if there is at least one model that matches the RHS.
-            if isinstance(value, Rule):
-                if isinstance(lhs, Manager):
-                    if not value.filter(user, lhs.all()).exists():
-                        return False
-                else:
-                    if not value.check(user, lhs):
-                        return False
-            else:
-                resolved_value = value(user) if callable(value) else value
-                if isinstance(lhs, Manager):
-                    if resolved_value not in lhs.all():
-                        return False
-                else:
-                    if lhs != resolved_value:
-                        return False
-
-        # Woohoo, everything matches!
-        return True
-
     def query(self, user):
         accumulated_q = Q()
 
@@ -443,11 +391,6 @@ class Attribute(Rule):
     def query(self, user):
         return Q(**{self.attr: self.get_match(user)})
 
-    def check(self, user, instance=None):
-        if instance is None:
-            return False
-        return getattr(instance, self.attr) == self.get_match(user)
-
 
 class Is(Rule):
     """Rule class that checks the identity of the instance.
@@ -474,11 +417,6 @@ class Is(Rule):
 
     def query(self, user):
         return Q(pk=self.get_instance(user).pk)
-
-    def check(self, user, instance=None):
-        if instance is None:
-            return False
-        return instance == self.get_instance(user)
 
 
 #: This rule is satisfied by the user object itself.
@@ -513,21 +451,6 @@ class In(Rule):
         if isinstance(collection, QuerySet):
             return Q(pk__in=collection.values_list("pk"))
         return Q(pk__in=[x.pk for x in collection])
-
-    def check(self, user, instance=None):
-        if instance is None:
-            return False
-
-        collection = self.get_collection(user)
-
-        if isinstance(collection, QuerySet):
-            # If we have a queryset, the rule passes if the instance is
-            # of the same model, and the pk is present in the qs
-            if not isinstance(instance, collection.model):
-                return False
-            return collection.filter(pk=instance.pk).exists()
-
-        return instance in collection
 
 
 #: This rule is satisfied by any group the user is in.
@@ -590,11 +513,6 @@ class Relation(Rule):
             return related_q
         return add_prefix(related_q, self.attr)
 
-    def check(self, user, instance=None):
-        if instance is None:
-            return self.rule.check(user, None)
-        return self.rule.check(user, getattr(instance, self.attr))
-
 
 class ManyRelation(Rule):
     """Check that a rule applies to a many-object relationship.
@@ -650,13 +568,3 @@ class ManyRelation(Rule):
         if related_q is UNIVERSAL or related_q is EMPTY:
             return related_q
         return add_prefix(related_q, self.query_attr)
-
-    def check(self, user, instance=None):
-        if instance is None:
-            return self.rule.check(user, None)
-        related_q = self.rule.query(user)
-        if related_q is UNIVERSAL or related_q is EMPTY:
-            return related_q
-        attr = instance.__class__._meta.get_field(self.query_attr,).get_accessor_name()
-        related_manager = getattr(instance, attr)
-        return related_manager.filter(related_q).exists()

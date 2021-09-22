@@ -122,7 +122,13 @@ class Rule:
         this rule for a given instance, or if none is provided,
         every instance.
         """
-        if instance is None:
+        # If an instance context was not given, we could only possibly return
+        # True if the rule universally passes for the user.
+        if self.query(user) is UNIVERSAL:
+            return True
+        elif instance is None:
+            # An instance context was not given, and the rule does not
+            # universally pass. We must return false.
             return False
         # Get a queryset with only this instance in it
         queryset = instance._meta.model.objects.filter(pk=instance.pk)
@@ -248,9 +254,6 @@ class blanket_rule(Rule):  # noqa: used as a decorator, so should be lowercase
 
     def query(self, user):
         return UNIVERSAL if self.rule_func(user) else EMPTY
-
-    def check(self, user, instance=None):
-        return self.rule_func(user)
 
 
 @blanket_rule

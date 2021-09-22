@@ -128,13 +128,16 @@ class Rule:
         this with more optimised single-instance check logic (if it makes sense
         in your use case).
         """
-        # If an instance context was not given, we could only possibly return
-        # True if the rule universally passes for the user.
-        if self.query(user) is UNIVERSAL:
+        query_result = self.query(user)
+        if query_result is UNIVERSAL:
+            # This rule universally passes for this user.
             return True
+        elif query_result is EMPTY:
+            # This rule universally fails for this user.
+            return False
         elif instance is None:
-            # An instance context was not given, and the rule does not
-            # universally pass. We must return false.
+            # An instance context was not given and no blanket pass/fail
+            # applied, so the rule must fail.
             return False
         # Get a queryset with only this instance in it
         queryset = instance._meta.model.objects.filter(pk=instance.pk)

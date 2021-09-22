@@ -121,6 +121,12 @@ class Rule:
         Given a user, return a boolean indicating if that user satisfies
         this rule for a given instance, or if none is provided,
         every instance.
+
+        By default, this method checks the provided instance against the
+        QuerySet provided by :meth:`filter`, however this necessitates a
+        database call for every :meth:`check` call, so you may wish to override
+        this with more optimised single-instance check logic (if it makes sense
+        in your use case).
         """
         # If an instance context was not given, we could only possibly return
         # True if the rule universally passes for the user.

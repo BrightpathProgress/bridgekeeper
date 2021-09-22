@@ -6,6 +6,7 @@ number of built-in rules.
 
 from django.db.models import Manager, Q, QuerySet
 from django.db.models.fields.reverse_related import ForeignObjectRel
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class Sentinel:
@@ -326,7 +327,14 @@ class R(Rule):
                     attr = field.get_accessor_name()
                 else:
                     attr = key_fragment
-                lhs = getattr(lhs, attr)
+                try:
+                    lhs = getattr(lhs, attr)
+                except ObjectDoesNotExist:
+                    # This will occur if we are attempting to follow the
+                    # 'other' side of a ForeignKey/OneToOneField, but there is
+                    # no record on the other side.
+                    lhs = None
+                    break
 
             # Compare it against the RHS.
             # Note that the LHS will usually be a value, but in the case

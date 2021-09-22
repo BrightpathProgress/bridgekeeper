@@ -2,8 +2,9 @@ from django.db.models import Q
 
 import pytest
 
-from shrubberies.factories import ShrubberyFactory, StoreFactory, UserFactory
-from shrubberies.models import Shrubbery, Store
+from shrubberies.factories import ShrubberyFactory, StoreFactory, UserFactory, ProfileFactory
+from shrubberies.models import Shrubbery, Store, Profile
+from django.contrib.auth.models import User
 
 from .rules import EMPTY, R, UNIVERSAL, Rule
 
@@ -93,6 +94,28 @@ def test_traverse_fk_user_func():
     qs = store_check_r.filter(user, Shrubbery.objects.all())
     assert shrubbery_match in qs
     assert shrubbery_nomatch not in qs
+
+
+def test_traverse_nonexistent_fk():
+    """Comparing with a reverse FK traversal that does not exist for the model."""
+    user = UserFactory(profile=None)
+    profile = ProfileFactory(user=UserFactory(profile=None))
+    user_has_profile = R(profile=profile)
+    user_has_no_profile = R(profile=None)
+
+    # filter() tests
+    users_with_profile = user_has_profile.filter(user, User.objects.all())
+    assert user not in users_with_profile
+    assert profile.user in users_with_profile
+    users_with_no_profile = user_has_no_profile.filter(user, User.objects.all())
+    assert user in users_with_no_profile
+    assert profile.user not in users_with_no_profile
+
+    # check() tests
+    assert not user_has_profile.check(user, user)
+    assert user_has_profile.check(user, profile.user)
+    assert user_has_no_profile.check(user, user)
+    assert not user_has_no_profile.check(user, profile.user)
 
 
 def test_nested_rule_object():

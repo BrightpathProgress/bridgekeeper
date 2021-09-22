@@ -170,7 +170,6 @@ def test_sentinels_with_single_R_kwarg():
         def check(self, user, instance=None):
             if instance is None:
                 return False
-            
             if user.is_superuser:
                 return True
             elif user.is_staff:
@@ -183,7 +182,7 @@ def test_sentinels_with_single_R_kwarg():
     u2 = UserFactory()
     s1 = ShrubberyFactory(branch=u1.profile.branch)
     s2 = ShrubberyFactory(branch=u2.profile.branch)
-    
+
     # Create superuser/staff
     superuser = UserFactory(is_superuser=True)
     staff = UserFactory(is_staff=True)

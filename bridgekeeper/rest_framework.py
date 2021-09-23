@@ -134,7 +134,6 @@ class BridgekeeperRESTMixin:
         :rtype: bridgekeeper.rules.Rule
         """
         name = self.get_permission_name(request, view, obj)
-        print(name, flush=True)
         try:
             return perms[name]
         except KeyError:

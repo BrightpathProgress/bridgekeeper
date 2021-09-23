@@ -37,7 +37,6 @@ def test_list_view_is_filtered():
     r.user = user
     response = v(r)
     response.render()
-    print(response.content)
     assert response.status_code == 200
     data = json.loads(response.content.decode("utf8"))
     assert len(data) == 1
@@ -112,7 +111,6 @@ def test_update_view_404_when_not_permitted():
     r.user = user
     response = v(r, pk=s2.id)
     response.render()
-    print(response.content)
     assert response.status_code == 404
 
 

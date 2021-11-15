@@ -144,7 +144,7 @@ class Rule:
         # Filter the queryset by the Rule
         queryset = self.filter(user, queryset)
         # Check if it exists
-        return queryset.exists()
+        return queryset.only("pk").exists()
 
     def __and__(self, other):
         return And(self, other)

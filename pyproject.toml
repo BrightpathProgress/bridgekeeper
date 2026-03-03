@@ -9,15 +9,15 @@ license = "MIT"
 readme = "README.rst"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4.0"
+python = ">=3.10,<4.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 djangorestframework = "^3.10"
-pytest = "^8.2"
+pytest = "^9.0"
 pytest-django = "^4.8"
 prospector = "1.5.1"
 # poetry seems to choke on this so for now, it's installed by nox instead
-#factory-boy = "^2.9.2"
+#factory-boy = "^3.0.0"
 
 sphinx = "^3.1.1"
 sphinx-rtd-theme = "^0.5.0"
